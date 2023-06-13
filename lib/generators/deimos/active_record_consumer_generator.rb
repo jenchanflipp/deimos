@@ -6,6 +6,7 @@ require 'generators/deimos/schema_class_generator'
 require 'generators/deimos/active_record_generator'
 require 'rails/version'
 require 'erb'
+require 'byebug'
 
 # Generates a new Active Record Consumer, as well
 # as all the necessary files and configuration.
@@ -33,12 +34,16 @@ module Deimos
 
       source_root File.expand_path('active_record_consumer/templates', __dir__)
 
-      argument :full_schema, desc: 'The fully qualified schema name.', required: true
-      argument :key_config_type, desc: 'The kafka message key configuration type.', required: true
-      argument :key_config_value, desc: 'The kafka message key configuration value.', required: true
-      argument :config_path, desc: 'The path to the deimos configuration file, relative to the root directory.', required: false
-
       no_commands do
+
+        def prompt_user
+          @full_schema = ask('Enter the fully qualified schema name: ')
+          @key_config_type = ask('Enter the kafka message key configuration type(none/plain/schema/field): ')
+          @key_config_value = ask('Enter the kafka message key configuration value: ')
+          @config_path = ask('Enter the path to the deimos configuration file (optional): ')
+
+          validate_arguments
+        end
 
         # validate schema, key_config and deimos config file
         def validate_arguments
@@ -49,7 +54,8 @@ module Deimos
 
         # Creates database migration for creating new table and Rails Model
         def create_db_migration_rails_model
-          Deimos::Generators::ActiveRecordGenerator.start([table_name,full_schema])
+          byebug
+          Deimos::Generators::ActiveRecordGenerator.start([table_name, full_schema])
         end
 
         # Creates Kafka Consumer file
@@ -60,7 +66,7 @@ module Deimos
         # Adds consumer config to config file.
         # Defaults to deimos.rb if config_path arg is not specified.
         def create_consumer_config
-          if @config_file_path.nil?
+          if @config_path.nil?
             config_file = 'deimos.rb'
             @config_file_path = "#{initializer_path}/#{config_file}"
           end
@@ -149,7 +155,8 @@ module Deimos
         #   gem 'rspec-rails', group: :test
         #   after_bundle { generate 'rspec:install' }
         # end
-        validate_arguments
+        prompt_user
+        # validate_arguments
         create_db_migration_rails_model
         create_consumer
         create_consumer_config
@@ -170,19 +177,19 @@ module Deimos
 #           key_config schema: 'MyKeySchema-key' - this tells the producer to look for an existing key schema named MyKeySchema-key in the schema registry and to encode the key using it. Use this if you've already created a key schema or the key value does not exist in the existing payload (e.g. it is a compound or generated key).
 # key_config field: 'my_field' - this tells the producer to look for a field named my_field in the value schema. When a payload comes in, the producer will take that value from the payload and insert it in a dynamically generated key schema. This key schema does not need to live in your codebase. Instead, it will be a subset of the value schema with only the key field in it.
       def _validate_key_config
-        @key_type = key_config_type
-        if KEY_CONFIG_OPTIONS_BOOL.include?(key_config_type)
+        @key_type = @key_config_type
+        if KEY_CONFIG_OPTIONS_BOOL.include?(@key_config_type)
           @key_value = 'true'
-        elsif KEY_CONFIG_OPTIONS_STRING.include?(key_config_type)
-          @key_value = key_config_value
+        elsif KEY_CONFIG_OPTIONS_STRING.include?(@key_config_type)
+          @key_value = @key_config_value
         else
           raise 'Invalid key config specified!'
         end
       end
 
       def _validate_config_path
-        if config_path.present?
-          @config_file_path = "#{initializer_path}/#{config_path}"
+        if @config_path.present?
+          @config_file_path = "#{initializer_path}/#{@config_path}"
           raise 'Configuration file does not exist!' unless File.exist?(@config_file_path)
         end
       end
