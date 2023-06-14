@@ -4,6 +4,7 @@ require 'phobos'
 require 'phobos/cli'
 require 'generators/deimos/schema_class_generator'
 require 'optparse'
+require 'generators/deimos/active_record_consumer_generator'
 
 namespace :deimos do
   desc 'Starts Deimos in the rails environment'
@@ -37,6 +38,12 @@ namespace :deimos do
   task generate_schema_classes: :environment do
     Rails.logger.info("Running deimos:generate_schema_classes")
     Deimos::Generators::SchemaClassGenerator.start
+  end
+
+  desc 'Run Interactive Consumer Generator'
+  task generate_active_record_consumer: :environment do
+    Rails.logger.info("Running deimos:generate_active_record_consumer")
+    Deimos::Generators::ActiveRecordConsumerGenerator.start
   end
 
 end
